@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>กระโดดลบเลข - เกมทักษะคณิตศาสตร์ ป.2</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Prompt & Mali for kawaii typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;800;900&family=Mali:wght@600;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        body {
+            font-family: 'Prompt', 'Mali', sans-serif;
+            background-color: #bae6fd;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            width: 100vw;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        .kawaii-font {
+            font-family: 'Mali', cursive, sans-serif;
+        }
+        .bounce-ui {
+            animation: bounce 2s infinite;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+        .modal-bg {
+            background-color: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(5px);
+        }
+    </style>
+</head>
+<body class="relative w-full h-full select-none overflow-hidden bg-sky-200">
+
+    <!-- Canvas for 2D graphics -->
+    <canvas id="gameCanvas" class="absolute inset-0 w-full h-full z-0"></canvas>
+
+    <!-- UI Overlay Header -->
+    <div id="hud" class="absolute top-0 left-0 w-full p-2 sm:p-4 z-10 pointer-events-none flex flex-col items-center">
+        <!-- Top Status Bar -->
+        <div class="w-full max-w-xl flex justify-between items-center bg-white/90 backdrop-blur-md rounded-2xl px-3 sm:px-5 py-2 shadow-lg border-2 border-sky-300">
+            <!-- Question Progress -->
+            <div class="flex items-center space-x-1 sm:space-x-2">
+                <span class="text-xs sm:text-sm font-bold text-sky-800">ข้อที่</span>
+                <span id="questionCount" class="text-base sm:text-xl font-extrabold text-sky-900 kawaii-font">1/10</span>
+            </div>
+
+            <!-- Hearts Display -->
+            <div id="heartsContainer" class="flex items-center space-x-1 text-lg sm:text-2xl">
+                <span>❤️</span><span>❤️</span><span>❤️</span>
+            </div>
+
+            <!-- Score Display -->
+            <div class="flex items-center space-x-1">
+                <span class="text-xs sm:text-sm font-bold text-amber-700">คะแนน</span>
+                <span id="scoreText" class="text-lg sm:text-2xl font-extrabold text-amber-600 kawaii-font">0</span>
+            </div>
+
+            <!-- Sound & Help buttons -->
+            <div class="pointer-events-auto flex items-center space-x-1 sm:space-x-2">
+                <button id="soundBtn" onclick="toggleSound()" class="bg-amber-100 hover:bg-amber-200 text-amber-800 p-2 rounded-xl text-sm font-bold shadow transition active:scale-95" title="เปิด/ปิดเสียง">
+                    🔊
+                </button>
+                <button onclick="openInstructionsModal()" class="bg-sky-100 hover:bg-sky-200 text-sky-800 p-2 rounded-xl text-sm font-bold shadow transition active:scale-95" title="วิธีเล่น">
+                    ❓
+                </button>
+            </div>
+        </div>
+
+        <!-- Question Banner -->
+        <div id="questionBanner" class="mt-2 sm:mt-3 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-400 border-4 border-white text-slate-900 rounded-3xl px-6 py-2 shadow-xl transform scale-100 transition-all duration-300 text-center">
+            <div class="text-xs sm:text-sm font-extrabold text-amber-900 opacity-90">โจทย์ลบเลข</div>
+            <div id="equationText" class="text-3xl sm:text-5xl font-black text-slate-900 tracking-wider kawaii-font drop-shadow">
+                12 − 5 = ?
+            </div>
+        </div>
+    </div>
+
+    <!-- On-screen Mobile Touch Controls -->
+    <div id="touchControls" class="absolute bottom-4 left-0 w-full px-6 z-10 flex justify-between pointer-events-none md:hidden">
+        <button id="btnLeft" class="pointer-events-auto bg-white/80 active:bg-yellow-300 border-4 border-yellow-400 text-yellow-900 text-3xl font-black w-16 h-16 rounded-full shadow-xl flex items-center justify-center transition active:scale-90">
+            👈
+        </button>
+        <button id="btnRight" class="pointer-events-auto bg-white/80 active:bg-yellow-300 border-4 border-yellow-400 text-yellow-900 text-3xl font-black w-16 h-16 rounded-full shadow-xl flex items-center justify-center transition active:scale-90">
+            👉
+        </button>
+    </div>
+
+    <!-- Instructions Modal (วิธีเล่น) -->
+    <div id="instructionsModal" class="fixed inset-0 modal-bg z-30 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border-4 border-yellow-300 text-center relative transform transition-all animate-fade-in">
+            <div class="w-20 h-20 bg-yellow-100 rounded-full mx-auto -mt-12 flex items-center justify-center border-4 border-yellow-300 shadow-md text-4xl bounce-ui">
+                🐥
+            </div>
+
+            <h2 class="text-2xl sm:text-3xl font-extrabold text-sky-800 mt-2 kawaii-font">วิธีเล่น "กระโดดลบเลข"</h2>
+            <p class="text-sky-600 text-xs sm:text-sm mb-4">ฝึกทักษะการลบเลขสำหรับนักเรียน ป.2</p>
+
+            <div class="space-y-3 text-left bg-sky-50 p-4 rounded-2xl border border-sky-100 text-slate-700 text-sm mb-5">
+                <div class="flex items-start space-x-3">
+                    <span class="text-2xl">🎯</span>
+                    <span><strong>เป้าหมาย:</strong> ขยับลูกบอลไปอยู่เหนือแท่นคำตอบที่ถูกต้อง</span>
+                </div>
+                <div class="flex items-start space-x-3">
+                    <span class="text-2xl">👀</span>
+                    <span><strong>อ่านโจทย์:</strong> สังเกตโจทย์เลขลบที่ป้ายสีเหลืองด้านบน</span>
+                </div>
+                <div class="flex items-start space-x-3">
+                    <span class="text-2xl">👈👉</span>
+                    <span><strong>บังคับ:</strong> กดปุ่มลูกศรคีย์บอร์ด, แตะปุ่ม 👈 👉 บนจอ หรือลากนิ้ว/เม้าส์</span>
+                </div>
+                <div class="flex items-start space-x-3">
+                    <span class="text-2xl">⬇️</span>
+                    <span><strong>เลือกแท่น:</strong> นำลูกบอลเลื่อนไปลงแท่นตัวเลขที่ถูกต้องก่อนแท่นตกถึงเส้นประ</span>
+                </div>
+                <div class="flex items-start space-x-3 bg-amber-100/80 p-2 rounded-xl text-amber-900 text-xs border border-amber-200">
+                    <span class="text-xl">💡</span>
+                    <span><strong>คำแนะนำ:</strong> ตอบผิดแท่นถูกจะเรืองแสงเฉลย ไม่เป็นไร สู้ๆ ลองใหม่ข้อถัดไปได้เลย!</span>
+                </div>
+            </div>
+
+            <button id="startBtn" onclick="startGame()" class="w-full bg-gradient-to-r from-emerald-400 to-green-500 hover:from-emerald-500 hover:to-green-600 text-white font-extrabold text-xl py-3 px-6 rounded-2xl shadow-lg border-b-4 border-green-700 transition active:scale-95 kawaii-font">
+                เริ่มเล่นเลย! 🚀
+            </button>
+        </div>
+    </div>
+
+    <!-- Game Over / Victory Modal -->
+    <div id="resultModal" class="fixed inset-0 modal-bg z-30 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border-4 border-pink-300 text-center relative transform transition-all">
+            <div id="resultEmoji" class="text-6xl mb-2 bounce-ui">🎉</div>
+            <h2 id="resultTitle" class="text-3xl font-extrabold text-slate-800 kawaii-font">เก่งมาก!</h2>
+            <p id="resultSubtitle" class="text-slate-500 text-sm mb-3">สรุปผลการเล่นของคุณ</p>
+
+            <div id="starsContainer" class="text-4xl my-2 space-x-1">
+                <span class="text-amber-400">⭐</span>
+                <span class="text-amber-400">⭐</span>
+                <span class="text-amber-400">⭐</span>
+            </div>
+
+            <div class="bg-pink-50 p-4 rounded-2xl border border-pink-100 my-4 space-y-2">
+                <div class="flex justify-between items-center text-sm">
+                    <span class="text-slate-600">คะแนนรวม:</span>
+                    <span id="finalScore" class="text-2xl font-black text-amber-600 kawaii-font">1000</span>
+                </div>
+                <div class="flex justify-between items-center text-sm">
+                    <span class="text-slate-600">ผ่านทั้งหมด:</span>
+                    <span id="finalQuestions" class="text-lg font-bold text-sky-700">10 / 10 ข้อ</span>
+                </div>
+                <div class="flex justify-between items-center text-sm">
+                    <span class="text-slate-600">หัวใจที่เหลือ:</span>
+                    <span id="finalHearts" class="text-lg font-bold text-red-500">❤️❤️❤️</span>
+                </div>
+            </div>
+
+            <button onclick="restartGame()" class="w-full bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-500 hover:to-yellow-600 text-slate-900 font-extrabold text-xl py-3 px-6 rounded-2xl shadow-lg border-b-4 border-yellow-600 transition active:scale-95 kawaii-font">
+                เล่นอีกครั้ง 🔄
+            </button>
+        </div>
+    </div>
+
+    <script>
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.muted = false;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) this.ctx = new AudioCtx();
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            playJump() {
+                if (this.muted || !this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(180, this.ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(380, this.ctx.currentTime + 0.12);
+                    gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.12);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.12);
+                } catch(e) {}
+            }
+
+            playCorrect() {
+                if (this.muted || !this.ctx) return;
+                try {
+                    const now = this.ctx.currentTime;
+                    const notes = [523.25, 659.25, 783.99, 1046.50];
+                    notes.forEach((freq, idx) => {
+                        const osc = this.ctx.createOscillator();
+                        const gain = this.ctx.createGain();
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(freq, now + idx * 0.06);
+                        gain.gain.setValueAtTime(0.2, now + idx * 0.06);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.06 + 0.15);
+                        osc.connect(gain);
+                        gain.connect(this.ctx.destination);
+                        osc.start(now + idx * 0.06);
+                        osc.stop(now + idx * 0.06 + 0.15);
+                    });
+                } catch(e) {}
+            }
+
+            playWrong() {
+                if (this.muted || !this.ctx) return;
+                try {
+                    const now = this.ctx.currentTime;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(150, now);
+                    osc.frequency.linearRampToValueAtTime(80, now + 0.25);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.25);
+                } catch(e) {}
+            }
+
+            playWin() {
+                if (this.muted || !this.ctx) return;
+                try {
+                    const now = this.ctx.currentTime;
+                    const notes = [440, 554.37, 659.25, 880];
+                    notes.forEach((freq, idx) => {
+                        const osc = this.ctx.createOscillator();
+                        const gain = this.ctx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(freq, now + idx * 0.12);
+                        gain.gain.setValueAtTime(0.2, now + idx * 0.12);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.12 + 0.3);
+                        osc.connect(gain);
+                        gain.connect(this.ctx.destination);
+                        osc.start(now + idx * 0.12);
+                        osc.stop(now + idx * 0.12 + 0.3);
+                    });
+                } catch(e) {}
+            }
+        }
+
+        const sound = new SoundEngine();
+
+        function toggleSound() {
+            sound.muted = !sound.muted;
+            document.getElementById('soundBtn').innerText = sound.muted ? '🔇' : '🔊';
+        }
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width = 0;
+        let height = 0;
+
+        let gameState = 'START';
+        let score = 0;
+        let hearts = 3;
+        let currentQuestionIdx = 0;
+        const TOTAL_QUESTIONS = 10;
+        let speedMultiplier = 1.0;
+
+        let screenShake = 0;
+        let particles = [];
+        let backgroundClouds = [];
+
+        let currentProblem = null;
+        let activePair = null;
+
+        const character = {
+            x: 0,
+            y: 0,
+            radius: 30,
+            targetX: 0,
+            bounceTimer: 0,
+            squishY: 1,
+            squishX: 1,
+            isMovingLeft: false,
+            isMovingRight: false
+        };
+
+        function resizeCanvas() {
+            const dpr = window.devicePixelRatio || 1;
+            width = window.innerWidth;
+            height = window.innerHeight;
+
+            canvas.width = width * dpr;
+            canvas.height = height * dpr;
+            canvas.style.width = width + 'px';
+            canvas.style.height = height + 'px';
+
+            ctx.resetTransform();
+            ctx.scale(dpr, dpr);
+
+            character.radius = Math.max(26, Math.min(width * 0.065, 38));
+            if (character.x === 0) {
+                character.x = width / 2;
+                character.targetX = width / 2;
+            }
+            character.y = height - 160;
+
+            if (backgroundClouds.length === 0) {
+                for (let i = 0; i < 6; i++) {
+                    backgroundClouds.push({
+                        x: Math.random() * width,
+                        y: Math.random() * (height * 0.45),
+                        size: Math.random() * 32 + 28,
+                        speed: Math.random() * 0.3 + 0.15
+                    });
+                }
+            }
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        function generateMathProblem() {
+            // A - B = C, where A in [2, 20], B in [1, A]
+            const numA = Math.floor(Math.random() * 19) + 2; 
+            const numB = Math.floor(Math.random() * numA) + 1;
+            const correctAnswer = numA - numB;
+
+            let distractor;
+            let attempts = 0;
+            do {
+                const delta = (Math.random() < 0.5 ? 1 : -1) * (Math.floor(Math.random() * 3) + 1);
+                distractor = correctAnswer + delta;
+                attempts++;
+            } while ((distractor < 0 || distractor === correctAnswer) && attempts < 50);
+
+            if (distractor < 0 || distractor === correctAnswer) {
+                distractor = correctAnswer === 0 ? 1 : correctAnswer - 1;
+            }
+
+            const isLeftCorrect = Math.random() < 0.5;
+
+            return {
+                numA,
+                numB,
+                equationStr: `${numA} − ${numB} = ?`,
+                correctAnswer,
+                distractor,
+                isLeftCorrect,
+                leftAnswer: isLeftCorrect ? correctAnswer : distractor,
+                rightAnswer: isLeftCorrect ? distractor : correctAnswer
+            };
+        }
+
+        function createPlatformPair(problem) {
+            const platformWidth = Math.min(width * 0.38, 170);
+            const platformHeight = 60;
+            const startY = 110; // Spawns directly below header banner so options are immediately visible
+
+            return {
+                y: startY,
+                height: platformHeight,
+                width: platformWidth,
+                leftX: Math.max(12, width * 0.25 - platformWidth / 2),
+                rightX: Math.min(width - platformWidth - 12, width * 0.75 - platformWidth / 2),
+                leftValue: problem.leftAnswer,
+                rightValue: problem.rightAnswer,
+                speed: (1.2 + currentQuestionIdx * 0.14) * speedMultiplier,
+                resolved: false,
+                highlightCorrect: false
+            };
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a') character.isMovingLeft = true;
+            if (e.key === 'ArrowRight' || e.key === 'd') character.isMovingRight = true;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a') character.isMovingLeft = false;
+            if (e.key === 'ArrowRight' || e.key === 'd') character.isMovingRight = false;
+        });
+
+        let isPointerDown = false;
+        window.addEventListener('pointerdown', (e) => {
+            if (gameState === 'PLAYING' && e.clientY > 110) {
+                isPointerDown = true;
+                character.targetX = e.clientX;
+                sound.init();
+            }
+        });
+
+        window.addEventListener('pointermove', (e) => {
+            if (isPointerDown && gameState === 'PLAYING') {
+                character.targetX = e.clientX;
+            }
+        });
+
+        window.addEventListener('pointerup', () => { isPointerDown = false; });
+
+        const bindTouchBtn = (btn, dir) => {
+            btn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                sound.init();
+                if (dir === 'left') character.isMovingLeft = true;
+                if (dir === 'right') character.isMovingRight = true;
+            });
+            btn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                if (dir === 'left') character.isMovingLeft = false;
+                if (dir === 'right') character.isMovingRight = false;
+            });
+        };
+        bindTouchBtn(document.getElementById('btnLeft'), 'left');
+        bindTouchBtn(document.getElementById('btnRight'), 'right');
+
+        function createStarParticles(x, y) {
+            for (let i = 0; i < 18; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 5 + 2;
+                particles.push({
+                    x,
+                    y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed - 1,
+                    size: Math.random() * 8 + 4,
+                    color: ['#fde047', '#f43f5e', '#38bdf8', '#a855f7', '#4ade80'][Math.floor(Math.random() * 5)],
+                    life: 1.0
+                });
+            }
+        }
+
+        function update() {
+            if (gameState !== 'PLAYING') return;
+
+            const moveSpeed = 8;
+            if (character.isMovingLeft) character.targetX -= moveSpeed;
+            if (character.isMovingRight) character.targetX += moveSpeed;
+
+            character.x += (character.targetX - character.x) * 0.25;
+
+            character.x = Math.max(character.radius, Math.min(width - character.radius, character.x));
+            character.targetX = Math.max(character.radius, Math.min(width - character.radius, character.targetX));
+
+            character.bounceTimer += 0.12;
+            const bounceOffset = Math.sin(character.bounceTimer) * 12;
+            character.y = (height - 160) + bounceOffset;
+
+            if (Math.abs(bounceOffset - 12) < 0.5) {
+                sound.playJump();
+            }
+
+            character.squishY = 1 + Math.cos(character.bounceTimer) * 0.08;
+            character.squishX = 1 - Math.cos(character.bounceTimer) * 0.08;
+
+            if (!activePair) {
+                currentProblem = generateMathProblem();
+                document.getElementById('equationText').innerText = currentProblem.equationStr;
+                activePair = createPlatformPair(currentProblem);
+            }
+
+            if (activePair) {
+                activePair.y += activePair.speed;
+
+                const landingLineY = height - 160;
+                const platformTopY = activePair.y;
+
+                if (!activePair.resolved && platformTopY >= landingLineY - 15) {
+                    const charX = character.x;
+                    const onLeft = charX >= (activePair.leftX - 25) && charX <= (activePair.leftX + activePair.width + 25);
+                    const onRight = charX >= (activePair.rightX - 25) && charX <= (activePair.rightX + activePair.width + 25);
+
+                    if (onLeft || onRight) {
+                        activePair.resolved = true;
+                        const chosenAnswer = onLeft ? activePair.leftValue : activePair.rightValue;
+                        const isCorrect = chosenAnswer === currentProblem.correctAnswer;
+
+                        handleAnswerResult(isCorrect, onLeft ? (activePair.leftX + activePair.width/2) : (activePair.rightX + activePair.width/2));
+                    }
+                    else if (platformTopY >= landingLineY + 35) {
+                        activePair.resolved = true;
+                        handleAnswerResult(false, width / 2);
+                    }
+                }
+
+                if (activePair.y > height + 80) {
+                    currentQuestionIdx++;
+                    updateHUD();
+
+                    if (currentQuestionIdx >= TOTAL_QUESTIONS || hearts <= 0) {
+                        endGame();
+                    } else {
+                        activePair = null;
+                    }
+                }
+            }
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life -= 0.025;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+
+            backgroundClouds.forEach(c => {
+                c.x += c.speed;
+                if (c.x - c.size > width) c.x = -c.size;
+            });
+
+            if (screenShake > 0) screenShake *= 0.85;
+        }
+
+        function handleAnswerResult(isCorrect, hitX) {
+            if (isCorrect) {
+                score += 100;
+                sound.playCorrect();
+                createStarParticles(hitX, activePair.y);
+
+                const banner = document.getElementById('questionBanner');
+                banner.classList.add('scale-110', 'bg-green-300');
+                setTimeout(() => banner.classList.remove('scale-110', 'bg-green-300'), 300);
+
+            } else {
+                hearts--;
+                sound.playWrong();
+                screenShake = 12;
+
+                activePair.highlightCorrect = true;
+
+                const banner = document.getElementById('questionBanner');
+                banner.classList.add('bg-rose-300');
+                setTimeout(() => banner.classList.remove('bg-rose-300'), 400);
+            }
+
+            updateHUD();
+        }
+
+        function updateHUD() {
+            document.getElementById('scoreText').innerText = score;
+            document.getElementById('questionCount').innerText = `${Math.min(currentQuestionIdx + 1, TOTAL_QUESTIONS)}/${TOTAL_QUESTIONS}`;
+
+            let heartsHTML = '';
+            for (let i = 0; i < 3; i++) {
+                heartsHTML += (i < hearts) ? '❤️' : '🖤';
+            }
+            document.getElementById('heartsContainer').innerHTML = heartsHTML;
+        }
+
+        function draw() {
+            ctx.save();
+
+            if (screenShake > 0.5) {
+                const dx = (Math.random() - 0.5) * screenShake;
+                const dy = (Math.random() - 0.5) * screenShake;
+                ctx.translate(dx, dy);
+            }
+
+            // 1. Background Sky & Sun
+            const skyGradient = ctx.createLinearGradient(0, 0, 0, height);
+            skyGradient.addColorStop(0, '#bae6fd');
+            skyGradient.addColorStop(1, '#e0f2fe');
+            ctx.fillStyle = skyGradient;
+            ctx.fillRect(0, 0, width, height);
+
+            // Smiling Sun
+            ctx.fillStyle = '#fde047';
+            ctx.beginPath();
+            ctx.arc(width - 50, 60, 32, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#fca5a5';
+            ctx.beginPath();
+            ctx.arc(width - 60, 65, 5, 0, Math.PI * 2);
+            ctx.arc(width - 40, 65, 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#78350f';
+            ctx.beginPath();
+            ctx.arc(width - 58, 56, 3, 0, Math.PI * 2);
+            ctx.arc(width - 42, 56, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 2. Clouds
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.88)';
+            backgroundClouds.forEach(c => {
+                ctx.beginPath();
+                ctx.arc(c.x, c.y, c.size, 0, Math.PI * 2);
+                ctx.arc(c.x + c.size * 0.5, c.y - c.size * 0.3, c.size * 0.7, 0, Math.PI * 2);
+                ctx.arc(c.x + c.size, c.y, c.size * 0.8, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // 3. Landing Dashed Line
+            const landingY = height - 150;
+            ctx.strokeStyle = 'rgba(14, 165, 233, 0.5)';
+            ctx.lineWidth = 4;
+            ctx.setLineDash([12, 8]);
+            ctx.beginPath();
+            ctx.moveTo(0, landingY);
+            ctx.lineTo(width, landingY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // 4. Draw Platforms (คำตอบซ้าย - ขวา)
+            if (activePair) {
+                drawPlatform(activePair.leftX, activePair.y, activePair.width, activePair.height, activePair.leftValue, activePair.highlightCorrect && currentProblem.isLeftCorrect, 'ซ้าย 👈');
+                drawPlatform(activePair.rightX, activePair.y, activePair.width, activePair.height, activePair.rightValue, activePair.highlightCorrect && !currentProblem.isLeftCorrect, 'ขวา 👉');
+            }
+
+            // 5. Particles
+            particles.forEach(p => {
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.life;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+            });
+
+            // 6. Draw Kawaii Character
+            drawCharacter();
+
+            ctx.restore();
+        }
+
+        function drawPlatform(x, y, w, h, numberValue, isGlowing, sideTagStr) {
+            ctx.save();
+
+            // Drop shadow
+            ctx.shadowColor = isGlowing ? '#22c55e' : 'rgba(0,0,0,0.18)';
+            ctx.shadowBlur = isGlowing ? 22 : 12;
+            ctx.shadowOffsetY = 6;
+
+            // Shiny Gradient
+            const platGrad = ctx.createLinearGradient(x, y, x, y + h);
+            if (isGlowing) {
+                platGrad.addColorStop(0, '#86efac');
+                platGrad.addColorStop(1, '#22c55e');
+            } else {
+                platGrad.addColorStop(0, '#f472b6'); // Candy Pink
+                platGrad.addColorStop(1, '#db2777');
+            }
+
+            ctx.fillStyle = platGrad;
+            ctx.beginPath();
+            ctx.roundRect(x, y, w, h, 20);
+            ctx.fill();
+
+            // Glossy Shine
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+            ctx.beginPath();
+            ctx.roundRect(x + 6, y + 4, w - 12, h * 0.35, 12);
+            ctx.fill();
+
+            // Border
+            ctx.strokeStyle = isGlowing ? '#15803d' : '#831843';
+            ctx.lineWidth = 3.5;
+            ctx.beginPath();
+            ctx.roundRect(x, y, w, h, 20);
+            ctx.stroke();
+
+            // Top Direction Badge ("ซ้าย" / "ขวา")
+            ctx.shadowColor = 'transparent';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
+            ctx.beginPath();
+            ctx.roundRect(x + (w / 2 - 28), y - 13, 56, 18, 9);
+            ctx.fill();
+            ctx.fillStyle = '#831843';
+            ctx.font = '800 11px "Prompt", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(sideTagStr, x + w / 2, y - 4);
+
+            // Large Bold Choice Number
+            const fontSize = Math.min(38, Math.max(28, h * 0.58));
+            ctx.font = `900 ${fontSize}px "Mali", "Prompt", sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            // High contrast outline for maximum visibility
+            ctx.strokeStyle = '#33101e';
+            ctx.lineWidth = 5;
+            ctx.strokeText(numberValue, x + w / 2, y + h / 2 + 3);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(numberValue, x + w / 2, y + h / 2 + 3);
+
+            ctx.restore();
+        }
+
+        function drawCharacter() {
+            ctx.save();
+            ctx.translate(character.x, character.y);
+            ctx.scale(character.squishX, character.squishY);
+
+            ctx.fillStyle = 'rgba(0,0,0,0.12)';
+            ctx.beginPath();
+            ctx.ellipse(0, character.radius + 6, character.radius * 0.8, 6, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            const bodyGrad = ctx.createRadialGradient(-6, -6, 2, 0, 0, character.radius);
+            bodyGrad.addColorStop(0, '#fef08a');
+            bodyGrad.addColorStop(0.7, '#facc15');
+            bodyGrad.addColorStop(1, '#eab308');
+
+            ctx.fillStyle = bodyGrad;
+            ctx.beginPath();
+            ctx.arc(0, 0, character.radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = '#ca8a04';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            // Cheeks
+            ctx.fillStyle = '#f43f5e';
+            ctx.globalAlpha = 0.55;
+            ctx.beginPath();
+            ctx.arc(-character.radius * 0.45, 2, 6, 0, Math.PI * 2);
+            ctx.arc(character.radius * 0.45, 2, 6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1.0;
+
+            // Eyes
+            ctx.fillStyle = '#1e293b';
+            ctx.beginPath();
+            ctx.arc(-character.radius * 0.28, -4, 4.5, 0, Math.PI * 2);
+            ctx.arc(character.radius * 0.28, -4, 4.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Eye Highlights
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(-character.radius * 0.32, -6, 1.8, 0, Math.PI * 2);
+            ctx.arc(character.radius * 0.24, -6, 1.8, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Mouth
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 2.5;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.arc(0, 2, 5, 0.1, Math.PI - 0.1);
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function startGame() {
+            sound.init();
+            document.getElementById('instructionsModal').classList.add('hidden');
+            restartGame();
+        }
+
+        function openInstructionsModal() {
+            document.getElementById('instructionsModal').classList.remove('hidden');
+        }
+
+        function restartGame() {
+            score = 0;
+            hearts = 3;
+            currentQuestionIdx = 0;
+            speedMultiplier = 1.0;
+            activePair = null;
+            gameState = 'PLAYING';
+
+            document.getElementById('resultModal').classList.add('hidden');
+            updateHUD();
+        }
+
+        function endGame() {
+            gameState = 'GAMEOVER';
+
+            let starsCount = 1;
+            if (score >= 800 && hearts === 3) starsCount = 3;
+            else if (score >= 500 || hearts >= 2) starsCount = 2;
+
+            let starsHTML = '';
+            for (let i = 0; i < 3; i++) {
+                starsHTML += (i < starsCount) ? '<span class="text-amber-400">⭐</span>' : '<span class="text-slate-300">⭐</span>';
+            }
+            document.getElementById('starsContainer').innerHTML = starsHTML;
+
+            document.getElementById('finalScore').innerText = score;
+            document.getElementById('finalQuestions').innerText = `${currentQuestionIdx} / ${TOTAL_QUESTIONS} ข้อ`;
+
+            let heartsHTML = '';
+            for (let i = 0; i < 3; i++) heartsHTML += (i < hearts) ? '❤️' : '🖤';
+            document.getElementById('finalHearts').innerHTML = heartsHTML;
+
+            if (hearts <= 0) {
+                document.getElementById('resultEmoji').innerText = '💪';
+                document.getElementById('resultTitle').innerText = 'พยายามได้ดี!';
+                document.getElementById('resultSubtitle').innerText = 'ลองใหม่อีกครั้งนะจ๊ะ';
+            } else {
+                document.getElementById('resultEmoji').innerText = '🎉';
+                document.getElementById('resultTitle').innerText = 'ยอดเยี่ยมมาก!';
+                document.getElementById('resultSubtitle').innerText = 'ผ่านการเรียนรู้ทักษะการลบแล้ว';
+                sound.playWin();
+            }
+
+            document.getElementById('resultModal').classList.remove('hidden');
+        }
+
+        window.onload = function() {
+            resizeCanvas();
+            requestAnimationFrame(gameLoop);
+        };
+    </script>
+</body>
+</html>
